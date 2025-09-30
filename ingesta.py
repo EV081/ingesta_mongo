@@ -14,6 +14,7 @@ MONGO_PORT = int(os.getenv("MONGO_PORT", "27017"))
 MONGO_DB   = os.getenv("MONGO_DB", "")
 MONGO_USER = os.getenv("MONGO_USER", "")
 MONGO_PASSWORD = os.getenv("MONGO_PASSWORD", "")
+MONGO_AUTH_DB = os.getenv("MONGO_AUTH_DB", "admin")
 
 COLLECTIONS_ENV = os.getenv("COLLECTIONS", "")
 COLLECTIONS: List[str] = [c.strip() for c in COLLECTIONS_ENV.split(",") if c.strip()]
@@ -46,11 +47,13 @@ def ensure_output_dir(path: str):
 
 def get_client() -> MongoClient:
     if MONGO_USER and MONGO_PASSWORD:
-        uri = f"mongodb://{MONGO_USER}:{MONGO_PASSWORD}@{MONGO_HOST}:{MONGO_PORT}/{MONGO_DB}"
+        uri = (
+            f"mongodb://{MONGO_USER}:{MONGO_PASSWORD}"
+            f"@{MONGO_HOST}:{MONGO_PORT}/?authSource={MONGO_AUTH_DB}"
+        )
     else:
-        uri = f"mongodb://{MONGO_HOST}:{MONGO_PORT}/{MONGO_DB}"
+        uri = f"mongodb://{MONGO_HOST}:{MONGO_PORT}/"
     return MongoClient(uri)
-
 
 def export_collection_to_csv(client: MongoClient, collection_name: str, out_dir: str) -> str:
     """Exporta una colección a CSV usando pandas."""
