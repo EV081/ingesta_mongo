@@ -9,6 +9,7 @@ import boto3
 import pandas as pd
 from pymongo import MongoClient
 from botocore.exceptions import ClientError, NoCredentialsError, PartialCredentialsError
+from bson import ObjectId
 
 MONGO_HOST = os.getenv("MONGO_HOST", "localhost")
 MONGO_PORT = int(os.getenv("MONGO_PORT", "27017"))
@@ -56,6 +57,21 @@ def get_client() -> MongoClient:
         uri = f"mongodb://{MONGO_HOST}:{MONGO_PORT}/"
     return MongoClient(uri)
 
+
+def convert_objectid_to_str(doc):
+    """Convierte todos los ObjectId en un documento a su representación en string"""
+    for key, value in doc.items():
+        if isinstance(value, ObjectId):
+            doc[key] = str(value)
+        elif isinstance(value, dict):
+            convert_objectid_to_str(value) 
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict):
+                    convert_objectid_to_str(item)  
+    return doc
+
+
 def export_collection_to_ndjson(client: MongoClient, collection_name: str, out_dir: str) -> str:
     """Exporta una colección a NDJSON (newline-delimited JSON)."""
     db = client[MONGO_DB]
@@ -73,11 +89,11 @@ def export_collection_to_ndjson(client: MongoClient, collection_name: str, out_d
 
     with open(out_path, "w", encoding="utf-8") as f:
         for doc in docs:
+            doc = convert_objectid_to_str(doc)  
             f.write(json.dumps(doc, ensure_ascii=False) + "\n")
 
     print(f"[OK] {collection_name} -> {out_path} ({len(docs)} documentos)")
     return out_path
-
 
 
 def s3_client():
@@ -132,7 +148,6 @@ def main():
         upload_to_s3(path, S3_BUCKET, S3_PREFIX)
 
     print("[DONE] Ingesta completada.")
-
 
 
 if __name__ == "__main__":
