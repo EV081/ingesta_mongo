@@ -10,6 +10,7 @@ import pandas as pd
 from pymongo import MongoClient
 from botocore.exceptions import ClientError, NoCredentialsError, PartialCredentialsError
 from bson import ObjectId
+from datetime import datetime
 
 MONGO_HOST = os.getenv("MONGO_HOST", "localhost")
 MONGO_PORT = int(os.getenv("MONGO_PORT", "27017"))
@@ -58,19 +59,20 @@ def get_client() -> MongoClient:
     return MongoClient(uri)
 
 
-def convert_objectid_to_str(doc):
-    """Convierte todos los ObjectId en un documento a su representación en string"""
+def convert_objectid_and_datetime_to_str(doc):
+    """Convierte todos los ObjectId y datetime en un documento a su representación en string"""
     for key, value in doc.items():
         if isinstance(value, ObjectId):
             doc[key] = str(value)
+        elif isinstance(value, datetime):
+            doc[key] = value.isoformat()  # Convierte datetime a cadena ISO 8601
         elif isinstance(value, dict):
-            convert_objectid_to_str(value) 
+            convert_objectid_and_datetime_to_str(value)  # Recursivamente dentro de subdocumentos
         elif isinstance(value, list):
             for item in value:
                 if isinstance(item, dict):
-                    convert_objectid_to_str(item)  
+                    convert_objectid_and_datetime_to_str(item)  # Recursivamente dentro de listas de diccionarios
     return doc
-
 
 def export_collection_to_ndjson(client: MongoClient, collection_name: str, out_dir: str) -> str:
     """Exporta una colección a NDJSON (newline-delimited JSON)."""
@@ -89,11 +91,12 @@ def export_collection_to_ndjson(client: MongoClient, collection_name: str, out_d
 
     with open(out_path, "w", encoding="utf-8") as f:
         for doc in docs:
-            doc = convert_objectid_to_str(doc)  
+            doc = convert_objectid_and_datetime_to_str(doc)  # Convertir ObjectId y datetime a string
             f.write(json.dumps(doc, ensure_ascii=False) + "\n")
 
     print(f"[OK] {collection_name} -> {out_path} ({len(docs)} documentos)")
     return out_path
+
 
 
 def s3_client():
