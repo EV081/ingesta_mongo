@@ -55,8 +55,8 @@ def get_client() -> MongoClient:
         uri = f"mongodb://{MONGO_HOST}:{MONGO_PORT}/"
     return MongoClient(uri)
 
-def export_collection_to_csv(client: MongoClient, collection_name: str, out_dir: str) -> str:
-    """Exporta una colección a CSV usando pandas."""
+def export_collection_to_ndjson(client: MongoClient, collection_name: str, out_dir: str) -> str:
+    """Exporta una colección a NDJSON (newline-delimited JSON)."""
     db = client[MONGO_DB]
     coll = db[collection_name]
 
@@ -67,22 +67,16 @@ def export_collection_to_csv(client: MongoClient, collection_name: str, out_dir:
         print(f"[WARN] La colección '{collection_name}' está vacía. Se omite.")
         return ""
 
-    df = pd.DataFrame(docs)
-
-    filename = f"{collection_name}_{TIMESTAMP}.csv"
+    filename = f"{collection_name}_{TIMESTAMP}.ndjson"
     out_path = os.path.join(out_dir, filename)
 
-    quote = csv_quote_const(CSV_QUOTE)
-    df.to_csv(
-        out_path,
-        index=False,
-        sep=CSV_SEP,
-        quoting=quote,
-        lineterminator=CSV_LINE_TERMINATOR,
-    )
+    with open(out_path, "w", encoding="utf-8") as f:
+        for doc in docs:
+            f.write(json.dumps(doc, ensure_ascii=False) + "\n")
 
-    print(f"[OK] {collection_name} -> {out_path} ({len(df)} documentos)")
+    print(f"[OK] {collection_name} -> {out_path} ({len(docs)} documentos)")
     return out_path
+
 
 
 def s3_client():
@@ -125,7 +119,7 @@ def main():
 
     exported_files = []
     for coll in COLLECTIONS:
-        path = export_collection_to_csv(client, coll, OUTPUT_DIR)
+        path = export_collection_to_ndjson(client, coll, OUTPUT_DIR) 
         if path:
             exported_files.append(path)
 
@@ -137,6 +131,7 @@ def main():
         upload_to_s3(path, S3_BUCKET, S3_PREFIX)
 
     print("[DONE] Ingesta completada.")
+
 
 
 if __name__ == "__main__":
