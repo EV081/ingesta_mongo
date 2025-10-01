@@ -63,7 +63,8 @@ def convert_objectid_and_datetime_to_str(doc):
     """Convierte todos los ObjectId y datetime en un documento a su representación en string o formato OID"""
     for key, value in doc.items():
         if isinstance(value, ObjectId):
-            doc[key] = { "$oid": str(value) }  # Convierte ObjectId al formato {"$oid": "value"}
+            # Convertir ObjectId directamente a una cadena
+            doc[key] = str(value)  # Convierte ObjectId a string
         elif isinstance(value, datetime):
             doc[key] = value.isoformat()  # Convierte datetime a cadena ISO 8601
         elif isinstance(value, dict):
@@ -161,3 +162,4 @@ if __name__ == "__main__":
     finally:
         dur = time.time() - start
         print(f"Duración total: {dur:.1f}s")
+
