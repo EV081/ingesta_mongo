@@ -60,19 +60,20 @@ def get_client() -> MongoClient:
 
 
 def convert_objectid_and_datetime_to_str(doc):
-    """Convierte todos los ObjectId y datetime en un documento a su representación en string"""
+    """Convierte todos los ObjectId y datetime en un documento a su representación en string o formato OID"""
     for key, value in doc.items():
         if isinstance(value, ObjectId):
-            doc[key] = str(value)
+            doc[key] = { "$oid": str(value) }  # Convierte ObjectId al formato {"$oid": "value"}
         elif isinstance(value, datetime):
             doc[key] = value.isoformat()  # Convierte datetime a cadena ISO 8601
         elif isinstance(value, dict):
-            convert_objectid_and_datetime_to_str(value)  # Recursivamente dentro de subdocumentos
+            convert_objectid_and_datetime_to_str(value)  # Llamada recursiva dentro de subdocumentos
         elif isinstance(value, list):
             for item in value:
                 if isinstance(item, dict):
-                    convert_objectid_and_datetime_to_str(item)  # Recursivamente dentro de listas de diccionarios
+                    convert_objectid_and_datetime_to_str(item)  # Llamada recursiva dentro de listas de diccionarios
     return doc
+
 
 def export_collection_to_ndjson(client: MongoClient, collection_name: str, out_dir: str) -> str:
     """Exporta una colección a NDJSON (newline-delimited JSON)."""
